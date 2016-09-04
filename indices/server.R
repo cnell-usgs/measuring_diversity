@@ -5,6 +5,7 @@
 ##list variables
 
 library(shiny)
+library(shinyBS)
 
 shinyServer(function(input,output,session){
   output$shannon <- renderUI({
@@ -22,5 +23,6 @@ shinyServer(function(input,output,session){
     x <- round(rcauchy(1), 3)
     withMathJax(sprintf("Make something appear here", x, pcauchy(x)))
   })
+  output$proportonplot <- renderUI({})
 
 })
