@@ -1,39 +1,69 @@
-#ui
-library(shiny)
-library(shinyBS)
+##shannon diversity shiny app
+##demonstrte how index is calculated
+#change values of evenness, abundance and richness and outputs H
+#plot==
+##list variables
 
-shinyUI(fluidPage(
-  titlePanel("Measuring Diversity"),
-  title = 'Diversity',
-  sidebarLayout(
-    sidebarPanel(helpText("Measuring and comparing diversity is an important component in the field of ecology.  
-Diversity indices provide a measure beyond species richness and abundance that allows us to describe ecological communities.  
-                          Values of diversity are heavily influenced by the method of data collection and how this data is quantified.
-                          The following diversity indices are among the most commonly used ways to express diversity, using abundance and richness data.
-                          Each index varies in its' calculation and thus it is important to consider the system and question at hand before interpretation."),
-                 helpText("Consider these 8 species, each represented by a different symbol. Use the inputs to set
-                          either the abundance or proportion of the species in our hypothetical community to see how diversity changes"),
-                 helpText("Shannon and Simpson diversity indices account for both species abundance and evenness."),
-                 helpText("Select diversity index of interest:"),("Change parameters to understand how diversity measures are influenced."),
-                 helpText("p is the proportion (n/N) of individuals of species 'n' divided by total individuals 'N'."),
-                 helpText("s is the number of species")
-                 ),
-    mainPanel(h3("Diversity Indices"),
-  withMathJax(),
-  numericInput('insect','Insectivores',value=5,min=0,max=NA,step=1,width='50px'),numericInput('fruit','Frugivores',value=5,min=0,max=NA,step=1,width='50px'),
-  numericInput('meat','Carnivores',value=5,min=0,max=NA,step=1,width='50px'),
-  numericInput('nectar','Nectivores',value=5,min=0,max=NA,step=1,width='50px'),
-  numericInput('seed','Granivores',value=5,min=0,max=NA,step=1,width='50px'),
-  numericInput('leaf','Folivores',value=5,min=0,max=NA,step=1,width='50px'),
-  numericInput('all','Omnivores',value=5,min=0,max=NA,step=1,width='50px'),
-  uiOutput('shannon'),
-  helpText("Shannon value interpretaton here"),
-  uiOutput('simpson'),
-  helpText("Simpson value interpretaton here"),
-  helpText('The Simpson index is a dominance index, meaning that more weight is given to common species and rare species do not affect the diversity.'),
-  uiOutput('evenness'),
-  helpText("Evenness \\(E_{H}\\) ranges from 0 to 1, where 1 indicates that all species are present at the same abundance."),
-  checkboxInput('ex5_visible', 'Show calculation', FALSE),
-  helpText("Literature Cited: ")
-  ))
-))
+library(shiny)
+library(DT)
+library(ggplot2)
+
+guild<-c("insect","fruit","nectar","meat","seed","leaf","all")
+
+shinyServer(function(input,output,session){
+  ##generate data from inputs
+  guilds<-c("Insect","Meat","Fruit","Nectar","Seed","Leaf","All")
+  fram <- data.frame(guilds)
+  row.names(fram) <- NULL
+  
+  # The important part of reactiveValues()
+  values <- reactiveValues()
+  values$df <- fram
+  observe({
+    
+    # your action button condition
+    if(input$addButton > 0) {
+      # create the new line to be added from your inputs
+      abundance <- c(input$insect, input$meat, input$fruit, input$nectar, input$seed, input$leaf, input$all)
+      total_obs<- input$insect+input$meat+input$fruit+input$nectar+input$seed+input$leaf+input$all
+      proportion <- (abundance/total_obs)
+      lnpi <- log(proportion)
+      pilnpi <- proportion*lnpi
+      sumof <- sum(pilnpi)
+      free<-cbind(guilds,abundance,proportion,lnpi,pilnpi)
+      # update your data
+      # note the unlist of newLine, this prevents a bothersome warning message that the rbind will return regarding rownames because of using isolate.
+      isolate(values$df <- cbind(as.data.frame(fram), abundance, proportion, lnpi, pilnpi))
+    }
+  })
+  output$table <- renderTable({values$df}, include.rownames=F)
+  
+  output$plot <-renderPlotly(
+    ggplotly(ggplot(values$df,aes(x=1,y=proportion,fill=guilds))+geom_bar(stat="identity",position="stack",width=.3)+theme_minimal()+
+               coord_flip()+theme(legend.position="none",axis.text=element_blank())+labs(x=" ",y="Proportion")+scale_fill_brewer(palette="Dark2"))
+    
+  )
+
+  ###latex equations
+  output$shannon <- renderUI({
+    withMathJax(helpText("Shannon Diversity: $$H' = -~\\sum_{i=1}^{S}~p_{i}*ln(p_{i})$$"))
+  })
+  output$simpson <- renderUI({
+    withMathJax(helpText("Simpson Diversity: $$D_{1} = \\frac{1}{\\sum_{i=1}^{S}~p_{i}~^2}$$"))
+  })
+  output$evenness <- renderUI({
+    withMathJax(helpText("Evenness: $$E_{H} = H / H_{max} = H / ln(S)$$"))
+  })
+  output$ex4 <- renderUI({
+    invalidateLater(5000, session)
+    x <- round(rcauchy(1), 3)
+    withMathJax(sprintf("Make something appear here", x, pcauchy(x)))
+  })
+  #plot guild as proportion data
+  output$plot <-renderPlotly(
+    ggplotly(ggplot(values$df,aes(x=1,y=proportion,fill=guilds))+geom_bar(stat="identity",position="stack",width=.3)+theme_minimal()+
+               coord_flip()+theme(legend.position="none",axis.text=element_blank())+labs(x=" ",y="Proportion")+scale_fill_brewer(palette="Dark2"))
+    
+  )
+
+})
