@@ -1,0 +1,48 @@
+runApp(
+  list(
+    ui = fluidPage(
+      headerPanel('Adding Data'),
+      sidebarPanel(
+        numericInput('insect','Insectivores',value=5,min=0,max=NA,step=1,width='50px'),
+        numericInput('meat','Carnivores',value=5,min=0,max=NA,step=1,width='50px'),
+        numericInput('fruit','Frugivores',value=5,min=0,max=NA,step=1,width='50px'),
+        numericInput('nectar','Nectivores',value=5,min=0,max=NA,step=1,width='50px'),
+        numericInput('seed','Granivores',value=5,min=0,max=NA,step=1,width='50px'),
+        numericInput('leaf','Folivores',value=5,min=0,max=NA,step=1,width='50px'),
+        numericInput('all','Omnivores',value=5,min=0,max=NA,step=1,width='50px'),
+        actionButton("addButton", "calculate")
+      ),
+      mainPanel(
+        tableOutput("table"),
+        plotOutput("plot"))
+    ),
+    
+    server = function(input, output) {     
+      guilds<-c("Insect","Meat","Fruit","Nectar","Seed","Leaf","All")
+      fram <- data.frame(guilds)
+      row.names(fram) <- NULL
+      
+      # The important part of reactiveValues()
+      values <- reactiveValues()
+      values$df <- fram
+      observe({
+        
+        # your action button condition
+        if(input$addButton > 0) {
+          # create the new line to be added from your inputs
+          abundance <- c(input$insect, input$meat, input$fruit, input$nectar, input$seed, input$leaf, input$all)
+          total_obs<- input$insect+input$meat+input$fruit+input$nectar+input$seed+input$leaf+input$all
+          proportion <- (abundance/total_obs)*100
+          # update your data
+          # note the unlist of newLine, this prevents a bothersome warning message that the rbind will return regarding rownames because of using isolate.
+          isolate(values$df <- cbind(as.data.frame(fram), abundance, proportion))
+        }
+      })
+      output$table <- renderTable({values$df}, include.rownames=F)
+      output$plot <-renderPlot(
+        ggplot(values$df,aes(x=1,y=proportion,fill=guilds))+geom_bar(stat="identity",position="stack")+theme_minimal()+coord_flip()+
+          theme(legend.position="top")
+      )
+    }
+  )
+)
